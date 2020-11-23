@@ -1,0 +1,189 @@
+1.	Raw sequencing data is curated and analysed with FASTQC and AdapterRemoval tools.
+AdapterRemoval --file1 $INFILE1 --file2 $INFILE2 --threads 15 --adapter-list adap.fa --minquality 25 --basename ${FName}
+
+2.	Downloaded the Oryza sativa Indica ssp. genome fasta file, gff3 and GTF files from Ensembl plant database.
+
+3.	STAR mapping:
+
+A.	STAR genome index generated with the following parameters for the genome files
+STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --genomeFastaFiles Oryza_indica.ASM465v1.dna.toplevel.fa --sjdbGTFfile ./Oryza_indica.ASM465v1.43.gtf --sjdbOverhang 100 --genomeChrBinNbits 8 --genomeSAindexNbases 13 --limitGenomeGenerateRAM 32000000000 --genomeSAsparseD 5
+
+B.	1st pass STAR mapping - Mapped the quality filtered reads to the genome file using STAR
+
+--sjdbOverhang 100 
+--outSAMprimaryFlag AllBestScore 
+--outFilterMismatchNmax 2 
+--outSJfilterCountTotalMin 10 5 5 5 
+--outSAMstrandField intronMotif 
+--outFilterIntronMotifs RemoveNoncanonical 
+--alignIntronMin 60 
+--alignIntronMax 6000
+--outFilterScoreMinOverLread 0 
+--outFilterMatchNminOverLread 0
+--alignMatesGapMax 400
+
+C.	STAR --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 2/0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_ --outTmpDir /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_STAR
+
+D.	SJ.out.tab 
+column 1: chromosome
+column 2: first base of the intron (1-based)
+column 3: last base of the intron (1-based)
+column 4: strand (0: undefined, 1: +, 2: -)
+column 5: intron motif: 0: non-canonical; 1: GT/AG, 2: CT/AC, 3: GC/AG, 4: CT/GC, 5: AT/AC, 6: GT/AT
+column 6: 0: unannotated, 1: annotated (only if splice junction database is used)
+column 7: number of uniquely mapping reads crossing the junction
+column 8: number of multi-mapping reads crossing the junction
+column 9: maximum spliced alignment overhang
+
+E.	Novel SJ filteration after 1st pass STAR mapping (unannotated sj)
+cat *.tab | awk '($5 > 0 && $7 >= 1 && $6==0)' | cut -f1-6 | sort | uniq > NovelSJ_paired.tab
+
+F.	STAR genome index generated with the following parameters for the genome files along with the NovelSJ_paired.tab
+STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --genomeFastaFiles Oryza_indica.ASM465v1.dna.toplevel.fa --sjdbGTFfile ./Oryza_indica.ASM465v1.43.gtf --sjdbOverhang 100 --genomeChrBinNbits 8 --genomeSAindexNbases 13 --limitGenomeGenerateRAM 32000000000 --genomeSAsparseD 5 --sjdbFileChrStartEnd /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMapping_paired/NovelSJ_paired.tab
+
+G.	2nd pass STAR mapping - Mapped the quality filtered reads to the genome file using STAR
+
+--sjdbOverhang 100 
+--outSAMprimaryFlag AllBestScore 
+--outFilterMismatchNmax 0
+--outSJfilterCountTotalMin 10 5 5 5 
+--outSAMstrandField intronMotif 
+--outFilterIntronMotifs RemoveNoncanonical 
+--alignIntronMin 60 
+--alignIntronMax 6000
+--outFilterScoreMinOverLread 0 
+--outFilterMatchNminOverLread 0
+--alignMatesGapMax 400
+
+H.	STAR --runThreadN 2 --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 0 --outFilterScoreMinOverLread 0 --outFilterMatchNminOverLread 0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --alignMatesGapMax 400 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMappingpaired2ndPass/${FName}_paired_2ndPass_
+
+I.	Total number of SJ after 2nd pass STAR mapping (both annotated & unannotated, cannonica sj):
+cat *.tab | awk '($5 > 0 && $7 >= 1)' |  cut -f1-6 | sort | uniq |wc -l
+
+4.	Assembled the mapped reads with 3 different assemblers Scallop, Stringtie and Cufflinks with the default parameters
+
+scallop -i $INFILE -o ${FName}_Scallop.gtf
+cufflinks -g Oryza_indica.ASM465v1.43.gtf -o ${FName}_cufflinks $INFILE
+stringtie $INFILE -o ${FName}_stringtie.gtf -G ~/Oryza_indica.ASM465v1.43.gtf
+stringtie2 $INFILE -o ${FName}_stringtie2.gtf -G ~/Oryza_indica.ASM465v1.43.gtf -t -f 0
+
+Number of genes
+for i in *.gtf; do printf $i":" && awk 'BEGIN{FS="\t"}{print $9}' $i| awk 'BEGIN{FS=";"}{print $1}'| sed 's/gene_id "//g;s/"//g;/^$/d'|sort -u | wc -l; done
+
+
+5.	Merged the individual assemblies of all samples for each assembler with cuffmerge with default parameters
+
+cuffmerge -o ./cuffmerged_stringtie/ -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -s /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa -p 20 --min-isoform-fraction 0 --keep-tmp StringtieGtf.txt
+
+cuffmerge -o ./cuffmerged_scallop/ -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -s /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa -p 20 --min-isoform-fraction 0 --keep-tmp ScallopGtf.txt
+
+cuffmerge -o ./cuffmerged_cufflinks/ -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -s /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa -p 20 --min-isoform-fraction 0 --keep-tmp CufflinksGtf_fixed.txt
+
+stringtie --merge -p 10 -o stringtiemerged_scallop.gtf -F 0 -T 0 -f 0 -g 0 -i ScallopGtf.txt
+
+-F <min_fpkm> : minimum input transcript FPKM to include in the merge (default: 1.0)
+-T <min_tpm>   : minimum input transcript TPM to include in the merge (default: 1.0)
+-f <min_iso>      : minimum isoform fraction (default: 0.01)
+-g <gap_len>     : gap between transcripts to merge together (default: 250)
+-i                          : keep merged transcripts with retained introns; by default these are not kept unless there is strong evidence for them
+
+taco_run -p 20 --gtf-expr-attr RPKM --filter-min-expr 0 --isoform-frac 0 --max-isoforms 0 --ref-genome-fasta Oryza_indica.ASM465v1.dna.toplevel.fa ScallopGtf.txt |& tee terminal_output.txt &
+
+Exon comparison:
+
+awk '{if ($3=="exon" && ($7=="+" || $7=="-")) print $1"_"$4"_"$5"_"$7}' stringtie2_030819/cuffmerge/merged.gtf|sort -u |comm -12 stringtie2_030819/stringtie2_unique_exons.txt -|wc -l
+
+Intron comparison:
+Construction of intron files from exon gtf file using gread R LIBRARY, construct_introns function.
+
+#!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(gread))
+args = commandArgs(trailingOnly=TRUE)
+gtf_file <- file.path(args[1])
+gtf<-read_format(gtf_file)
+ans <- construct_introns(gtf, update=FALSE)[]
+write.table(ans,file="",row.names = FALSE, col.names = FALSE)
+
+for i in *_paired_2ndPass_stringtie2.gtf;do Rscript --vanilla ../multifilesgread.R $i > ${i%.*}_intron_list.gtf & done
+
+for i in *intron*;do sed -i 's/"//g' $i & done
+
+cat *intron_list.gtf |awk '{print $1"_"$2"_"$3"_"$5}'|sort -u > unique_intron_list.txt
+
+comm -12 unique_intron_list.txt merged_intron.txt
+
+Comparison of transcripts by combination of intron location:
+for i in intron_list*.gtf; do awk '{print $10"_"$11"\t"$1"\t"$5"\t"$2"_"$3}' $i |awk '{Q=$1 OFS $2 OFS $3;P=$0;$1=$2=$3="\b";A[Q]=A[Q]?A[Q] OFS $0:P} END{for(i in A){print A[i]}}' | cut -f 1 --complement  |sed 's/\t/_/g;s/ /_/g'|sort -u > combination_$i & done
+
+$10 – gene ID, $11 – transcript ID, $1 – Chromosome, $5 – Strand, $2 – Start, $3 – End
+
+Q=$1 OFS $2 OFS $3;         #### Creating a variable named Q, whose value is $1 OFS $2 OFS $3, means field 1st space 2nd field space 3rd field. Where OFS is output field seprator whose default value is SPACE.
+P=$0;                       #### Creating a variable named P whose value is $0(current line's value).
+$1=$2=$3="\b";              #### removing the value of 1st, 2nd and 3rd field is to backspace or setting it to NULL.
+A[Q]=A[Q]?A[Q] OFS $0:P;    #### Creating an array here whose index is variable Q($1 $2 $3), so first value for any index will be complete line and after that it will keep on concatenate the values to it's previous values.
+
+
+cat *_paired_2ndPass_Scallop_combination_intron_list_unique.gtf | sort -u > combination_intron_list_Scallop.gtf
+
+for i in combination_intron_list_*stringtie2.gtf; do printf $i" " && comm -12 combination_intron_list_stringtie2.gtf $i |wc -l; done
+
+
+Final transcriptome dataset construction:
+
+./stringtie --merge -p 10 -o stringtiemerge3assemblers.gtf -F 0 -T 0 -g 0 -i stringtiemergedgtflist.txt
+
+Rscript --vanilla multifilesgread.R stringtiemerge3assemblers.gtf > stringtiemerge3assemblers_intron.gtf
+
+awk '{print $11"\t"$1"_"$5"_"$2"_"$3}' stringtiemerge3assemblers_intron.gtf > stringtiemerge3assemblers_intron_modified.txt
+
+cat *sj.out.tab | awk '($5 > 0 && $7 >= 5 && $9 >= 10)' | cut -f1-4 | sort |uniq > sj.filtered.out.tab
+
+column 5: intron motif: 0: non-canonical; 1: GT/AG, 2: CT/AC, 3: GC/AG, 4: CT/GC, 5: AT/AC, 6: GT/AT
+column 7: number of uniquely mapping reads crossing the junction
+column 9: maximum spliced alignment overhang
+
+awk '$4=="1" { print $1"_+_"$2"_"$3} $4=="2" { print $1"_-_"$2"_"$3}' sj.filtered.out.tab > sj.filtered.out.modified.txt
+
+awk 'FNR==NR{a[$1];next}($2 in a){print}' sj.filtered.out.modified.txt stringtiemerge3assemblers_intron_modified.txt > test.txt
+
+awk '{print $1}' stringtiemerge3assemblers_intron_modified.txt | sort | uniq -c | sed 's/^ *//g' > transcriptID_count.txt
+
+awk '{print $1}' test.txt| sort | uniq -c | sed 's/^ *//g'| sed 's/ /_/g'|sort | comm -12 - transcriptID_count.txt > matchedtranscript.txt
+
+awk 'BEGIN{FS="_"}{print $2}' matchedtranscript.txt |sort -u|fgrep -w -f - stringtiemerge3assemblers.gtf > matchedtranscript.gtf
+
+Extract & merge single exon transcripts:
+
+tail -n +3 stringtiemerge3assemblers.gtf |awk '{print $12}'|sed 's/"//g;s/;//'|sort|uniq -c > stringtiemerge3assemblers_transcriptID_count.txt
+
+sed 's/^[ ]*//g' stringtiemerge3assemblers_transcriptID_count.txt |awk 'BEGIN{FS=" "}{if ($1==2) print $2}'|fgrep -w -f - stringtiemerge3assemblers.gtf > stringtiemerge3assemblers_single_exon.gtf
+
+stringtie --merge -p 10  -G /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -o annotation_merged310819.gtf -F 0 -T 0 -g 0 -i matchedtranscript.gtf stringtiemerge3assemblers_single_exon.gtf
+
+
+JCC analysis:
+
+BSgenome library created using BSgenomeforge
+
+Preparing input gtf file:
+gffread -w Oryza_indica.ASM465v1.43.fa -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa Oryza_indica.ASM465v1.43.gtf
+
+python removeNfromfas.py Oryza_indica.ASM465v1.43.fa > Oryza_indica.ASM465v1.43.withoutN.fa
+
+grep '>' Oryza_indica.ASM465v1.43.withoutN.fa|sed 's/-.*$//;s/^>//'|fgrep -w -f - Oryza_indica.ASM465v1.43.gtf > Oryza_indica.ASM465v1.43.withoutN.gtf
+
+awk '{if($3=="transcript" || $3=="exon") print $0}' Oryza_indica.ASM465v1.43.withoutN.gtf > indica_modified.gtf
+#strand fix
+awk '{if ($7=="+" || $7=="-") print $0}' file.gtf > file_strandfix.gtf
+
+generate salmon quant file (quant.sf) for Oryza_indica.ASM465v1.43.withoutN.fa
+
+generate_tx2gene_from_gtf.R for tx2gene.sub.rds
+read_quant_salmon.R for 12_1_quant.sub.rds
+
+run 12_1_jcc.R for 12_1 library using qsub jcc_12_1.sh
+
+salmon & kallisto quantification:
+
+
+
