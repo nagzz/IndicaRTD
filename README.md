@@ -1,4 +1,4 @@
-# High quality Reference Transcriptome construction improves RNA-seq quantification in Oryza sativa indica
+# High quality Reference Transcriptome construction improves RNA-seq quantification in <i>Oryza sativa indica</i>
 
 methodology.txt file consists of the various scripts used for the IndicaRTD construction.
 
