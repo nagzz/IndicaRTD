@@ -96,14 +96,6 @@ awk '{if ($3=="exon" && ($7=="+" || $7=="-")) print $1"_"$4"_"$5"_"$7}' stringti
 Intron comparison:
 Construction of intron files from exon gtf file using gread R LIBRARY, construct_introns function.
 
-#!/usr/bin/env Rscript
-suppressPackageStartupMessages(library(gread))
-args = commandArgs(trailingOnly=TRUE)
-gtf_file <- file.path(args[1])
-gtf<-read_format(gtf_file)
-ans <- construct_introns(gtf, update=FALSE)[]
-write.table(ans,file="",row.names = FALSE, col.names = FALSE)
-
 for i in *_paired_2ndPass_stringtie2.gtf;do Rscript --vanilla ../multifilesgread.R $i > ${i%.*}_intron_list.gtf & done
 
 for i in *intron*;do sed -i 's/"//g' $i & done
