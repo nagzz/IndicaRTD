@@ -6,10 +6,13 @@ AdapterRemoval --file1 $INFILE1 --file2 $INFILE2 --threads 15 --adapter-list ada
 
 3. Quality filtered sequencing data was used for STAR mapping :
 
-A. STAR genome index generated with the following parameters for the genome files
+A. STAR genome index generated with the following parameters using the downloaded genome files:
+
 STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --genomeFastaFiles Oryza_indica.ASM465v1.dna.toplevel.fa --sjdbGTFfile ./Oryza_indica.ASM465v1.43.gtf --sjdbOverhang 100 --genomeChrBinNbits 8 --genomeSAindexNbases 13 --limitGenomeGenerateRAM 32000000000 --genomeSAsparseD 5
 
-B.	1st pass STAR mapping - Mapped the quality filtered reads to the genome file using STAR
+B. First-pass STAR mapping - Mapping the quality filtered reads to the genome file using STAR
+
+STAR --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 2/0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_ --outTmpDir /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_STAR
 
 --sjdbOverhang 100 
 --outSAMprimaryFlag AllBestScore 
@@ -23,9 +26,8 @@ B.	1st pass STAR mapping - Mapped the quality filtered reads to the genome file 
 --outFilterMatchNminOverLread 0
 --alignMatesGapMax 400
 
-C.	STAR --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 2/0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_ --outTmpDir /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/${FName}_STAR
+STAR output file sj.out.tab file specifications:
 
-D.	SJ.out.tab 
 column 1: chromosome
 column 2: first base of the intron (1-based)
 column 3: last base of the intron (1-based)
@@ -36,13 +38,17 @@ column 7: number of uniquely mapping reads crossing the junction
 column 8: number of multi-mapping reads crossing the junction
 column 9: maximum spliced alignment overhang
 
-E.	Novel SJ filteration after 1st pass STAR mapping (unannotated sj)
+C. Novel SJ filteration after first-pass STAR mapping (unannotated sj):
+
 cat *.tab | awk '($5 > 0 && $7 >= 1 && $6==0)' | cut -f1-6 | sort | uniq > NovelSJ_paired.tab
 
-F.	STAR genome index generated with the following parameters for the genome files along with the NovelSJ_paired.tab
+D. STAR genome index generated with the following parameters for the genome files along with the NovelSJ_paired.tab:
+
 STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --genomeFastaFiles Oryza_indica.ASM465v1.dna.toplevel.fa --sjdbGTFfile ./Oryza_indica.ASM465v1.43.gtf --sjdbOverhang 100 --genomeChrBinNbits 8 --genomeSAindexNbases 13 --limitGenomeGenerateRAM 32000000000 --genomeSAsparseD 5 --sjdbFileChrStartEnd /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMapping_paired/NovelSJ_paired.tab
 
-G.	2nd pass STAR mapping - Mapped the quality filtered reads to the genome file using STAR
+E. Second-pass STAR mapping - Mapping the quality filtered reads to the genome file using STAR:
+
+STAR --runThreadN 2 --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 0 --outFilterScoreMinOverLread 0 --outFilterMatchNminOverLread 0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --alignMatesGapMax 400 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMappingpaired2ndPass/${FName}_paired_2ndPass_
 
 --sjdbOverhang 100 
 --outSAMprimaryFlag AllBestScore 
@@ -56,22 +62,22 @@ G.	2nd pass STAR mapping - Mapped the quality filtered reads to the genome file 
 --outFilterMatchNminOverLread 0
 --alignMatesGapMax 400
 
-H.	STAR --runThreadN 2 --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 0 --outFilterScoreMinOverLread 0 --outFilterMatchNminOverLread 0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --alignMatesGapMax 400 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMappingpaired2ndPass/${FName}_paired_2ndPass_
+F. Total number of SJ after 2nd pass STAR mapping (both annotated & unannotated, cannonica sj):
 
-I.	Total number of SJ after 2nd pass STAR mapping (both annotated & unannotated, cannonica sj):
 cat *.tab | awk '($5 > 0 && $7 >= 1)' |  cut -f1-6 | sort | uniq |wc -l
 
-4.	Assembled the mapped reads with 3 different assemblers Scallop, Stringtie and Cufflinks with the default parameters
+4. Assembling the mapped reads with 3 different assemblers Scallop, Stringtie and Cufflinks with the default parameters
 
 scallop -i $INFILE -o ${FName}_Scallop.gtf
 cufflinks -g Oryza_indica.ASM465v1.43.gtf -o ${FName}_cufflinks $INFILE
 stringtie2 $INFILE -o ${FName}_stringtie2.gtf -G ~/Oryza_indica.ASM465v1.43.gtf -t -f 0
 
-Number of genes
+Count number of genes in the GTF file:
+
 for i in *.gtf; do printf $i":" && awk 'BEGIN{FS="\t"}{print $9}' $i| awk 'BEGIN{FS=";"}{print $1}'| sed 's/gene_id "//g;s/"//g;/^$/d'|sort -u | wc -l; done
 
 
-5.	Merged the individual assemblies of all samples for each assembler with cuffmerge with default parameters
+5. Merging the individual assemblies of all samples for each assembler with cuffmerge with default parameters
 
 cuffmerge -o ./cuffmerged_stringtie/ -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -s /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa -p 20 --min-isoform-fraction 0 --keep-tmp StringtieGtf.txt
 
