@@ -62,7 +62,7 @@ STAR --runThreadN 2 --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_pro
 --outFilterMatchNminOverLread 0
 --alignMatesGapMax 400
 
-F. Total number of SJ after 2nd pass STAR mapping (both annotated & unannotated, cannonica sj):
+F. Total number of SJ after second-pass STAR mapping (both annotated & unannotated, cannonica sj):
 
 cat *.tab | awk '($5 > 0 && $7 >= 1)' |  cut -f1-6 | sort | uniq |wc -l
 
@@ -77,7 +77,7 @@ Count number of genes in the GTF file:
 for i in *.gtf; do printf $i":" && awk 'BEGIN{FS="\t"}{print $9}' $i| awk 'BEGIN{FS=";"}{print $1}'| sed 's/gene_id "//g;s/"//g;/^$/d'|sort -u | wc -l; done
 
 
-5. Merging the individual assemblies of all samples for each assembler with cuffmerge with default parameters
+5. Merging the individual assemblies of all samples for each assembler with cuffmerge, stringtie and taco with default parameters
 
 cuffmerge -o ./cuffmerged_stringtie/ -g /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.43.gtf -s /home/ns43567/CEIB_rice_project/JHI/ensembl_indica/Oryza_indica.ASM465v1.dna.toplevel.fa -p 20 --min-isoform-fraction 0 --keep-tmp StringtieGtf.txt
 
@@ -95,44 +95,14 @@ stringtie --merge -p 10 -o stringtiemerged_scallop.gtf -F 0 -T 0 -f 0 -g 0 -i Sc
 
 taco_run -p 20 --gtf-expr-attr RPKM --filter-min-expr 0 --isoform-frac 0 --max-isoforms 0 --ref-genome-fasta Oryza_indica.ASM465v1.dna.toplevel.fa ScallopGtf.txt |& tee terminal_output.txt &
 
-Exon comparison:
-
-awk '{if ($3=="exon" && ($7=="+" || $7=="-")) print $1"_"$4"_"$5"_"$7}' stringtie2_030819/cuffmerge/merged.gtf|sort -u |comm -12 stringtie2_030819/stringtie2_unique_exons.txt -|wc -l
-
-Intron comparison:
-Construction of intron files from exon gtf file using gread R LIBRARY, construct_introns function.
-
-for i in *_paired_2ndPass_stringtie2.gtf;do Rscript --vanilla ../multifilesgread.R $i > ${i%.*}_intron_list.gtf & done
-
-for i in *intron*;do sed -i 's/"//g' $i & done
-
-cat *intron_list.gtf |awk '{print $1"_"$2"_"$3"_"$5}'|sort -u > unique_intron_list.txt
-
-comm -12 unique_intron_list.txt merged_intron.txt
-
-Comparison of transcripts by combination of intron location:
-for i in intron_list*.gtf; do awk '{print $10"_"$11"\t"$1"\t"$5"\t"$2"_"$3}' $i |awk '{Q=$1 OFS $2 OFS $3;P=$0;$1=$2=$3="\b";A[Q]=A[Q]?A[Q] OFS $0:P} END{for(i in A){print A[i]}}' | cut -f 1 --complement  |sed 's/\t/_/g;s/ /_/g'|sort -u > combination_$i & done
-
-$10 – gene ID, $11 – transcript ID, $1 – Chromosome, $5 – Strand, $2 – Start, $3 – End
-
-Q=$1 OFS $2 OFS $3;         #### Creating a variable named Q, whose value is $1 OFS $2 OFS $3, means field 1st space 2nd field space 3rd field. Where OFS is output field seprator whose default value is SPACE.
-P=$0;                       #### Creating a variable named P whose value is $0(current line's value).
-$1=$2=$3="\b";              #### removing the value of 1st, 2nd and 3rd field is to backspace or setting it to NULL.
-A[Q]=A[Q]?A[Q] OFS $0:P;    #### Creating an array here whose index is variable Q($1 $2 $3), so first value for any index will be complete line and after that it will keep on concatenate the values to it's previous values.
-
-
-cat *_paired_2ndPass_Scallop_combination_intron_list_unique.gtf | sort -u > combination_intron_list_Scallop.gtf
-
-for i in combination_intron_list_*stringtie2.gtf; do printf $i" " && comm -12 combination_intron_list_stringtie2.gtf $i |wc -l; done
-
-
-Final transcriptome dataset construction:
+####Transcriptome dataset construction:
+#######################################
 
 ./stringtie --merge -p 10 -o stringtiemerge3assemblers.gtf -F 0 -T 0 -g 0 -i stringtiemergedgtflist.txt
 
-Rscript --vanilla multifilesgread.R stringtiemerge3assemblers.gtf > stringtiemerge3assemblers_intron.gtf
+Rscript --vanilla ../multifilesgread.R stringtiemerge3assemblers.gtf > stringtiemerge3assemblers_intron.txt
 
-awk '{print $11"\t"$1"_"$5"_"$2"_"$3}' stringtiemerge3assemblers_intron.gtf > stringtiemerge3assemblers_intron_modified.txt
+awk '{print $11"\t"$1"_"$5"_"$2"_"$3}' stringtiemerge3assemblers_intron.txt > stringtiemerge3assemblers_intron_modified.txt
 
 cat *sj.out.tab | awk '($5 > 0 && $7 >= 5 && $9 >= 10)' | cut -f1-4 | sort |uniq > sj.filtered.out.tab
 
