@@ -1,0 +1,31 @@
+Exon comparison:
+
+awk '{if ($3=="exon" && ($7=="+" || $7=="-")) print $1"_"$4"_"$5"_"$7}' stringtie2_030819/cuffmerge/merged.gtf|sort -u |comm -12 stringtie2_030819/stringtie2_unique_exons.txt -|wc -l
+
+Intron comparison:
+
+Construction of intron files from exon gtf file using construct_introns function of gread R LIBRARY with the following command:
+
+for i in *_paired_2ndPass_stringtie2.gtf;do Rscript --vanilla ../multifilesgread.R $i > ${i%.*}_intron_list.gtf & done
+
+for i in *intron*;do sed -i 's/"//g' $i & done
+
+cat *intron_list.gtf |awk '{print $1"_"$2"_"$3"_"$5}'|sort -u > unique_intron_list.txt
+
+comm -12 unique_intron_list.txt merged_intron.txt
+
+Comparison of transcripts by intron transcript structure:
+
+for i in intron_list*.gtf; do awk '{print $10"_"$11"\t"$1"\t"$5"\t"$2"_"$3}' $i |awk '{Q=$1 OFS $2 OFS $3;P=$0;$1=$2=$3="\b";A[Q]=A[Q]?A[Q] OFS $0:P} END{for(i in A){print A[i]}}' | cut -f 1 --complement  |sed 's/\t/_/g;s/ /_/g'|sort -u > combination_$i & done
+
+$10 – gene ID, $11 – transcript ID, $1 – Chromosome, $5 – Strand, $2 – Start, $3 – End
+
+Q=$1 OFS $2 OFS $3;         #### Creating a variable named Q, whose value is $1 OFS $2 OFS $3, means field 1st space 2nd field space 3rd field. Where OFS is output field seprator whose default value is SPACE.
+P=$0;                       #### Creating a variable named P whose value is $0(current line's value).
+$1=$2=$3="\b";              #### removing the value of 1st, 2nd and 3rd field is to backspace or setting it to NULL.
+A[Q]=A[Q]?A[Q] OFS $0:P;    #### Creating an array here whose index is variable Q($1 $2 $3), so first value for any index will be complete line and after that it will keep on concatenate the values to it's previous values.
+
+
+cat *_paired_2ndPass_Scallop_combination_intron_list_unique.gtf | sort -u > combination_intron_list_Scallop.gtf
+
+for i in combination_intron_list_*stringtie2.gtf; do printf $i" " && comm -12 combination_intron_list_stringtie2.gtf $i |wc -l; done
