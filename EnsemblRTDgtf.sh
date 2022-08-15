@@ -14,12 +14,3 @@ awk '{if($3=="transcript" || $3=="exon") print $0}' Oryza_indica.ASM465v1.43.wit
 #strand fix
 
 awk '{if ($7=="+" || $7=="-") print $0}' tmp.gtf > EnsemblRTD.gtf
-
-generate salmon quant file (quant.sf) for Oryza_indica.ASM465v1.43.withoutN.fa
-
-generate_tx2gene_from_gtf.R for tx2gene.sub.rds
-read_quant_salmon.R for 12_1_quant.sub.rds
-
-run 12_1_jcc.R for 12_1 library using qsub jcc_12_1.sh
-
-salmon & kallisto quantification:
