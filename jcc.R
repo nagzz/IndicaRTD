@@ -3,7 +3,7 @@ library(dplyr)
 library(BSgenome)
 library("BSgenome.Oindica.ASM465v1")
 
-biasMod <- fitAlpineBiasModel(gtf = "reformated.gtf",bam = "../12_1_paired_2ndPass_Aligned.sortedByCoord.out.bam",organism = "Oryza sativa",genome = Oindica, genomeVersion = "v1", version = 1.1, minLength = 600, maxLength = 7000, minCount = 500, maxCount = 10000, subsample = TRUE, nbrSubsample = 200, seed = 1, minSize = NULL, maxSize = NULL, verbose = TRUE)
+biasMod <- fitAlpineBiasModel(gtf = "IndicaRTD.gtf",bam = "../12_1_paired_2ndPass_Aligned.sortedByCoord.out.bam",organism = "Oryza sativa",genome = Oindica, genomeVersion = "v1", version = 1.1, minLength = 600, maxLength = 7000, minCount = 500, maxCount = 10000, subsample = TRUE, nbrSubsample = 200, seed = 1, minSize = NULL, maxSize = NULL, verbose = TRUE)
 
 tx2gene <- readr::read_rds("tx2gene.sub.rds")
 
