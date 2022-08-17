@@ -43,7 +43,7 @@ STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/ns43567/CEIB_ric
 
 STAR --runThreadN 2 --runMode alignReads --genomeDir /home/ns43567/CEIB_rice_project/JHI/ensembl_indica --readFilesType Fastx --readFilesIn $INFILE --sjdbOverhang 100 --outSAMprimaryFlag AllBestScore --outFilterMismatchNmax 0 --outFilterScoreMinOverLread 0 --outFilterMatchNminOverLread 0 --outSJfilterCountTotalMin 10 5 5 5 --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --alignIntronMin 60 --alignIntronMax 6000 --alignMatesGapMax 400 --outSAMtype BAM SortedByCoordinate --outFileNamePrefix /home/ns43567/CEIB_rice_project/transcriptome/NGS_P5366/pe/StarMappingpaired2ndPass/${FName}_paired_2ndPass_
 
-### Total number of SJ after second-pass STAR mapping (both annotated & unannotated, cannonica sj):
+### Total number of SJ after second-pass STAR mapping (both annotated, unannotated and cannonica sj):
 ##################################################################################################
 
 cat *.tab | awk '($5 > 0 && $7 >= 1)' |  cut -f1-6 | sort | uniq |wc -l
@@ -77,6 +77,8 @@ stringtie --merge -p 10 -o StringtieMergedStringtie.gtf -F 0 -T 0 -f 0 -g 0 -i S
 
 #### Reference Transcriptome data (RTD) construction, creating the splice junction database (sj.db) and filtration of RTD with high-confident SJs
 #################################################################################################################################################
+
+cat StringtieMerged*.gtf > stringtiemergedgtflist.txt
 
 ./stringtie --merge -p 10 -o stringtiemerge3assemblers.gtf -F 0 -T 0 -g 0 -i stringtiemergedgtflist.txt
 
